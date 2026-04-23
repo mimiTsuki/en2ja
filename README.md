@@ -24,7 +24,7 @@ cd en2ja
 
 ```sh
 chmod +x bin/en2ja
-cp bin/en2ja /usr/local/bin/en2ja
+cp bin/en2ja ~/.local/bin/en2ja
 ```
 
 3. プロンプトテンプレートと設定ファイルを `~/.config/en2ja/` へコピーする
