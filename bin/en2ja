@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_DIR="${HOME}/.config/en2ja"
+CONFIG_FILE="${CONFIG_DIR}/config.sh"
+PROMPTS_DIR="${CONFIG_DIR}/prompts"
+
+# --list is a long option getopts can't handle, parse it manually first
+if [[ "${1:-}" == "--list" || "${1:-}" == "-l" ]]; then
+    if [[ ! -d "$PROMPTS_DIR" ]]; then
+        echo "en2ja: no prompts directory found at ${PROMPTS_DIR}" >&2
+        exit 1
+    fi
+    for f in "${PROMPTS_DIR}"/*.txt; do
+        [[ -e "$f" ]] || { echo "en2ja: no models found" >&2; exit 1; }
+        basename "$f" .txt
+    done
+    exit 0
+fi
+
+if ! command -v ollama &>/dev/null; then
+    echo "en2ja: 'ollama' command not found. Install ollama and try again." >&2
+    exit 1
+fi
+
+DEFAULT_MODEL="translategemma"
+[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
+MODEL="$DEFAULT_MODEL"
+
+while getopts ":m:" opt; do
+    case "$opt" in
+        m) MODEL="$OPTARG" ;;
+        :) echo "en2ja: option -${OPTARG} requires an argument" >&2; exit 1 ;;
+        \?) echo "en2ja: unknown option -${OPTARG}" >&2; exit 1 ;;
+    esac
+done
+
+INPUT="$(cat)"
+if [[ -z "$INPUT" ]]; then
+    echo "en2ja: no input. Pipe text to translate, e.g.: echo \"Hello\" | en2ja" >&2
+    exit 1
+fi
+
+PROMPT_FILE="${PROMPTS_DIR}/${MODEL}.txt"
+if [[ ! -f "$PROMPT_FILE" ]]; then
+    echo "en2ja: no prompt template found for model '${MODEL}' at ${PROMPT_FILE}" >&2
+    exit 1
+fi
+
+PROMPT="$(awk -v text="$INPUT" '{gsub(/\{\{text\}\}/, text); print}' "$PROMPT_FILE")"
+
+if ! printf '%s' "$PROMPT" | ollama run "$MODEL" 2>/dev/null; then
+    if ! ollama list &>/dev/null 2>&1; then
+        echo "en2ja: ollama server is not running. Start it with: ollama serve" >&2
+    fi
+    exit 1
+fi
