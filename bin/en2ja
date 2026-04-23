@@ -47,7 +47,8 @@ if [[ ! -f "$PROMPT_FILE" ]]; then
     exit 1
 fi
 
-PROMPT="$(awk -v text="$INPUT" '{gsub(/\{\{text\}\}/, text); print}' "$PROMPT_FILE")"
+TEMPLATE="$(<"$PROMPT_FILE")"
+PROMPT="${TEMPLATE//"{{text}}"/"$INPUT"}"
 
 if ! printf '%s' "$PROMPT" | ollama run "$MODEL" 2>/dev/null; then
     if ! ollama list &>/dev/null 2>&1; then
